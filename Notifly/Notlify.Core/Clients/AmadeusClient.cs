@@ -1,8 +1,10 @@
 ﻿using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Notlify.Core00.Interfaces;
+using Notlify.Core00.Models.Amadeus;
 
 namespace Notlify.Core00;
 
@@ -30,36 +32,29 @@ public class AmadeusClient : IAmadeusClient
             var url = $"https://test.api.amadeus.com/v2/shopping/flight-offers?originLocationCode={origin}&destinationLocationCode={destination}&departureDate={departureDate}&adults=1&currencyCode=GBP&max=1";
 
             var response = await _httpClient.GetAsync(url);
-            var content = await response.Content.ReadAsStringAsync();
+            var content = await response.Content.ReadFromJsonAsync<FlightOffersResponse>();
 
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogError($"Amadeus API Error ({response.StatusCode}): {content}");
                 return null;
             }
-
-            using var doc = JsonDocument.Parse(content);
-            var root = doc.RootElement;
-
-            // Check if "data" array exists and has items
-            if (root.TryGetProperty("data", out var data) && data.GetArrayLength() > 0)
+            if (content == null)
             {
-                // Navigate JSON: data[0] -> price -> grandTotal
-                var priceString = data[0].GetProperty("price").GetProperty("grandTotal").GetString();
-                    
-                if (decimal.TryParse(priceString, out decimal price))
-                {
-                    return price;
-                }
+                _logger.LogError("Amadeus API returned null content.");
+                return null;
             }
+            
+            if (content.Data.Count > 0)
+                return content.Data.First().Price.GrandTotalAmount;
 
             _logger.LogWarning($"No flights found for {origin}->{destination} on {departureDate}");
             return null;
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
-            throw;
+            _logger.LogError("Error fetching flight price: {Message}", e.Message);
+            return null;
         }
     }
 
@@ -69,10 +64,9 @@ public class AmadeusClient : IAmadeusClient
         {
             if (!string.IsNullOrEmpty(_cachedToken) && DateTime.UtcNow < _tokenExpiry.AddMinutes(-5))
             {
-                _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _cachedToken);
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _cachedToken);
                 return;
             }
-            _logger.LogInformation("Notifly client not authenticated");
             
             var clientKey = _configurationProvider["Amadeus:ClientKey"];
             var clientSecret = _configurationProvider["Amadeus:ClientSecret"];
@@ -87,25 +81,26 @@ public class AmadeusClient : IAmadeusClient
                 })
             };
             
-            var response = await _httpClient.SendAsync(request);
-            var content = await response.Content.ReadAsStringAsync();
+            var res = await _httpClient.SendAsync(request);
 
-            if (!response.IsSuccessStatusCode)
+            if (!res.IsSuccessStatusCode)
             {
-                throw new Exception($"Failed to authenticate with Amadeus: {content}");
+                var errorContent = await res.Content.ReadAsStringAsync();
+                throw new Exception($"Failed to authenticate with Amadeus: {errorContent}");
             }
+
+            var content = await res.Content.ReadFromJsonAsync<AuthenticationResponse>();
             
-            using var doc = JsonDocument.Parse(content);
-            _cachedToken = doc.RootElement.GetProperty("access_token").GetString();
-            int expiresInSeconds = doc.RootElement.GetProperty("expires_in").GetInt32();
+            
+            _cachedToken = content?.AccessToken;
+            int expiresInSeconds = (int)content!.ExpiresIn;
             
             _tokenExpiry = DateTime.UtcNow.AddSeconds(expiresInSeconds);
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _cachedToken);
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
-            throw;
+            _logger.LogError("Authentication failed: {Message}", e.Message);
         }
     }
 }
