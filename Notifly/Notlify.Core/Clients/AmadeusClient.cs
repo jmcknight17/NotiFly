@@ -24,7 +24,7 @@ public class AmadeusClient : IAmadeusClient
         _logger = logger;
     }
     
-    public async Task<decimal?> GetFlightPriceAsync(string origin, string destination, DateTime departureDate)
+    public async Task<decimal?> GetFlightPriceAsync(string origin, string destination, string departureDate)
     {
         try
         {
@@ -32,13 +32,15 @@ public class AmadeusClient : IAmadeusClient
             var url = $"https://test.api.amadeus.com/v2/shopping/flight-offers?originLocationCode={origin}&destinationLocationCode={destination}&departureDate={departureDate}&adults=1&currencyCode=GBP&max=1";
 
             var response = await _httpClient.GetAsync(url);
-            var content = await response.Content.ReadFromJsonAsync<FlightOffersResponse>();
-
+            
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError($"Amadeus API Error ({response.StatusCode}): {content}");
+                _logger.LogError($"Amadeus API Error ({response.StatusCode})");
                 return null;
             }
+            
+            var content = await response.Content.ReadFromJsonAsync<FlightOffersResponse>();
+            
             if (content == null)
             {
                 _logger.LogError("Amadeus API returned null content.");

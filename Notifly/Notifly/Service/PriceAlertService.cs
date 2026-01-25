@@ -18,8 +18,8 @@ public class PriceAlertService
         _whatsAppClient = whatsAppClient;
     }
 
-    private const decimal PriceThreshold = 200m;
-    private readonly DateTime _departureDate = new DateTime(2024, 5, 27);
+    private const decimal PriceThreshold = 500m;
+    private readonly DateTime _departureDate = new DateTime(2026, 5, 27);
     private const string Origin = "LHR";
     private const string Destination = "JFK";
 
@@ -29,7 +29,7 @@ public class PriceAlertService
     {
         try
         {
-            var price = await _amadeusClient.GetFlightPriceAsync(Origin, Destination, _departureDate);
+            var price = await _amadeusClient.GetFlightPriceAsync(Origin, Destination, _departureDate.ToString("yyyy-MM-dd"));
             if (price == null)
                 throw new Exception($"Price not found for {_departureDate}");
 

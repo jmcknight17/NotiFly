@@ -2,5 +2,5 @@
 
 public interface IAmadeusClient
 {
-    Task<decimal?> GetFlightPriceAsync(string origin, string destination, DateTime departureDate);
+    Task<decimal?> GetFlightPriceAsync(string origin, string destination, string departureDate);
 }
