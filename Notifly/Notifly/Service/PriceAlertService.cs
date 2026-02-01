@@ -40,11 +40,13 @@ public class PriceAlertService
             if(string.IsNullOrWhiteSpace(rawPaths) || string.IsNullOrWhiteSpace(flightDateRaw) || string.IsNullOrWhiteSpace(priceThresholdRaw))
                 throw new Exception("Failed to load configuration.");
             
-            decimal.TryParse(priceThresholdRaw, out var decimalPriceThreshold);;
+            decimal.TryParse(priceThresholdRaw, out var decimalPriceThreshold);
             
             var paths = rawPaths.Split(";");
             foreach (var path in paths)
             {
+                if (string.IsNullOrWhiteSpace(path) || !path.Contains('-'))
+                    continue;
                 try
                 {
                     var splitPath = path.Split('-');
@@ -57,20 +59,19 @@ public class PriceAlertService
                         throw new Exception($"No flight info found for {departurePoint} to {destination} on {flightDateRaw}.");
             
                     var allFlights = _flightInfoMapper.Map(rawFlightInfo.Data);
-                    var candidateFLights = new List<FlightInfo>();
+                    var candidateFLights = allFlights.OrderBy(f => f.Price)
+                        .Where(f => f.Price <= decimalPriceThreshold).Take(3)
+                        .ToList();
 
-                    foreach (var flight in allFlights)
+                    if (candidateFLights.Any())
                     {
-                        if (flight.Price <= decimalPriceThreshold)
-                            candidateFLights.Add(flight);
+                        var textMessage = _whatsAppNotificationBuilder.BuildNotificationMessage(candidateFLights);
+                
+                        var sent = await _whatsAppClient.SendPriceAlertAsync(textMessage);
+                
+                        if (!sent)
+                            _logger.LogError("Failed to send WhatsApp message.");   
                     }
-                
-                    var textMessage = _whatsAppNotificationBuilder.BuildNotificationMessage(candidateFLights);
-                
-                    var sent = await _whatsAppClient.SendPriceAlertAsync(textMessage);
-                
-                    if (!sent)
-                        _logger.LogError("Failed to send WhatsApp message.");
                 }
                 catch (Exception e)
                 {

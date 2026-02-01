@@ -29,7 +29,7 @@ public class AmadeusClient : IAmadeusClient
         try
         {
             await EnsureAuthenticated();
-            var url = $"https://test.api.amadeus.com/v2/shopping/flight-offers?originLocationCode={origin}&destinationLocationCode={destination}&departureDate={departureDate}&adults=1&currencyCode=GBP&max=1";
+            var url = $"https://test.api.amadeus.com/v2/shopping/flight-offers?originLocationCode={origin}&destinationLocationCode={destination}&departureDate={departureDate}&adults=1&currencyCode=GBP&max=10";
 
             var response = await _httpClient.GetAsync(url);
             
