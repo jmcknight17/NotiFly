@@ -41,10 +41,29 @@ public class WhatsAppClient : IWhatsAppClient
             {
                 messaging_product = "whatsapp",
                 to = recipientNumber,
-                type = "text",
-                text = new
+                type = "template",
+                template = new
                 {
-                    body = msgBody
+                    // CRITICAL: This must match the name you typed in Meta exactly
+                    name = "flight_alert_template",
+
+                    language = new { code = "en_GB" },
+
+                    components = new[]
+                    {
+                        new
+                        {
+                            type = "body",
+                            parameters = new[]
+                            {
+                                new
+                                {
+                                    type = "text",
+                                    text = msgBody
+                                }
+                            }
+                        }
+                    }
                 }
             };
             
