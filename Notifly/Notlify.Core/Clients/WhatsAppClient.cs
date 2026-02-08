@@ -70,7 +70,7 @@ public class WhatsAppClient : IWhatsAppClient
             var res = _httpClient.PostAsJsonAsync(requestUri, requestBody);
             if (!res.Result.IsSuccessStatusCode)
             {
-                _logger.LogError("Failed to send WhatsApp message. Status Code: {StatusCode}", res.Result.StatusCode);
+                _logger.LogError("Failed to send WhatsApp message. Status Code: {StatusCode} \n {Reason}", res.Result.StatusCode, res.Result);
                 return Task.FromResult(false);
             }
             
